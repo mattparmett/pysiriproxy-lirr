@@ -1,21 +1,29 @@
+import re
 import mechanize
+from bs4 import BeautifulSoup
 import csv
-from datetime import datetime
+from datetime import datetime, date, time
+import dateutil.parser
+import time
 import sys
 
 
-class Time:
-  def round(seconds = 60):
-    return Time.at((self.to_f / seconds).round * seconds)
-  
+class TrainTime():
+ 	def __init__(self, t):
+		self.t = t
 
-  def floor(seconds = 60):
-    return Time.at((self.to_f / seconds).floor * seconds)
+	@classmethod
+	def round(self, seconds = 60):
+		return time((self.t / seconds).round * seconds)
   
+	@classmethod
+	def floor(self, seconds = 60):
+		return time((self.t / seconds).floor * seconds)
   
-  def ceiling(seconds = 60):
-	t = self.floor(seconds)
-	return t + seconds
+	@classmethod
+	def ceiling(self, seconds = 60):
+		a = self.floor(seconds)
+		return a + seconds
   
 class StationError(Exception):
 	def __init__(self, value):
@@ -25,7 +33,7 @@ class StationError(Exception):
 
 class Station:
 	#args = [name/id, stations_csv_file]
-	def initialize(self, *args):
+	def __init__(self, *args):
 		if isinstance(args[1], basestring):
 			data = csv.reader(open(args[1], "rb"))
 		else:
@@ -34,33 +42,32 @@ class Station:
 		#If argument passed is name, assign name and get id. If id, assign id and get name.
 		if isinstance(args[0], basestring):
 			for row in data:
-				if row[1] == args[0]
+				if row[1] == args[0]:
 					self.id = row[0]
 					self.name = args[0]
-				elif: row[0] == args[0]
+				elif row[0] == args[0]:
 					self.name = row[1]
 					self.id = args[0]
 		else:
 			raise StationError, "Station not found."
 
 class Train:
-	attr_accessor :dep_time, :from_station, :from_station_name, :from_station_id, :arr_time, :to_station, :to_station_name, :to_station_id, :trans_station, :trans_station_name, :trans_station_id, :trans_time, :duration, :peak
 	
-	def __init__(dep_time, from_station, arr_time, to_station, trans_station, trans_time, duration, peak):
+	def __init__(self, dep_time, from_station, arr_time, to_station, trans_station, trans_time, duration, peak):
 		#from, to, and trans_station should all be Station objects.  Therefore, need to catch StationError.
 		try:
 			self.dep_time = dep_time
 			self.from_station = from_station
-				self.from_station_name = self.from_station.name
-				self.from_station_id = self.from_station.id
+			self.from_station_name = self.from_station.name
+			self.from_station_id = self.from_station.id
 			self.arr_time = arr_time
 			self.to_station = to_station
-				self.to_station_name = self.to_station.name
-				self.to_station_id = self.to_station.id
+			self.to_station_name = self.to_station.name
+			self.to_station_id = self.to_station.id
 			if isinstance(trans_station, basestring):
 				self.trans_station = trans_station
-					self.trans_station_name = self.trans_station.name
-					self.trans_station_id = self.trans_station.id
+				self.trans_station_name = self.trans_station.name
+				self.trans_station_id = self.trans_station.id
 			
 			self.trans_time = trans_time
 			self.duration = duration
@@ -80,6 +87,20 @@ class Train:
 		else:
 			return false
 
+	def to_siri():
+		if self.has_transfer() == true:
+			return "The next train from " + self.from_station_name + " to " + self.to_station_name + " leaves at " + self.dep_time + " and arrives at " + self.arr_time + ", with a transfer at " + self.trans_station_name + " at " + self.trans_time + "."
+
+		else:
+			return "The next train from " + self.from_station_name + " to " + self.to_station_name + " leaves at " + self.dep_time + " and arrives at " + self.arr_time + "."
+		
+
+	def to_timetable():
+		if self.has_transfer() == true:
+			return self.dep_time + " - " + self.trans_time + " - " + self.arr_time
+		else:
+			return self.dep_time + " - " + self.arr_time
+
 #End Classes
 ###
 
@@ -97,7 +118,7 @@ def convertStationToID(station_name, station_csv_file = "stations.csv"):
 		print "Station not found."
 
 def getTodaysDate():
-	time = datetime.datetime(localtime())
+	time = datetime.now()
 	
 	#Get correctly formatted month string
 	if time.month < 10:
@@ -117,164 +138,148 @@ def getTodaysDate():
 	return date_string
 
 def getTime():
-	time = datetime.time(localtime())
-	return time.strftime("%I:%M", time)
+	t = datetime.time(datetime.now())
+	return time.strftime("%I:%M", time.localtime())
 
 def getAMPM():
-	time = datetime.time(localtime())
-	return time.strftime("%p", time)
+	t = datetime.time(datetime.now())
+	return time.strftime("%p", time.localtime())
 
 #Takes search parameters and writes search result timetable to 'results.csv'
 #Returns an array of 5 Trains, each of which represents an individual train result.
 #args = [from_station, to_station, request_time_value, request_am_pm_value, request_date, station_csv_file]
-def getTrainTimes(*args)
+def getTrainTimes(*args):
 	#Assign more useful variable names to args
-	if args[5].is_a? String
+	if isinstance(args[5], basestring):
 		station_csv_file = args[5]
-	else
+	else:
 		station_csv_file = "stations.csv"
-	end
 	
-	begin
+	try:
 		from_station_id = args[0].id
-	rescue StationError => e
-		abort("Invalid departure station: " + args[0] + ".")
-	end
+	except StationError:
+		print("Invalid departure station: " + args[0] + ".")
 	
-	begin
+	try:
 		to_station_id = args[1].id
-	rescue StationError => e
+	except StationError:
 		abort("Invalid destination station: " + args[1] + ".")
-	end
 	
-	if args[2] != 0
+	if args[2] != 0:
 		request_time_value = args[2]
-	else
+	else:
 		request_time_value = getTime()
-	end
 	
-	if args[3] != 0
+	if args[3] != 0:
 		request_am_pm_value = args[3]
-	else
+	else:
 		request_am_pm_value = getAMPM()
-	end
 	
-	if args[4] != 0
+	if args[4] != 0:
 		request_date_value = args[4]
-	else
+	else:
 		request_date_value = getTodaysDate()
-	end
 	
 	#Create mechanize agent
-	a = Mechanize.new
+	a = mechanize.Browser()
 	
 	#Get lirr schedule search page
-	search = a.get("http://lirr42.mta.info/")
+	a.open("http://lirr42.mta.info/")
 	
 	#Select search form
-	search_form = search.form_with(:name => 'index')
+	a.select_form(name="index")
 	
 	#Set search form parameters
 	#Make sure stations are valid!
-	search_form['FromStation'] = from_station_id
-	search_form['ToStation'] = to_station_id
-	search_form['RequestTime'] = request_time_value
-	search_form['RequestAMPM'] = request_am_pm_value
-	search_form['RequestDate'] = request_date_value
+	a['FromStation'] = [from_station_id]
+	a['ToStation'] = [to_station_id]
+	a['RequestTime'] = ['10:00']
+	a['RequestAMPM'] = ['PM']	
+	#a['RequestTime'] = [request_time_value]
+	#a['RequestAMPM'] = [request_am_pm_value]
+	a['RequestDate'] = request_date_value
 
 	#Select submit button for schedules
-	button = search_form.button_with(:name => 'schedules')
+	#button = search_form.button_with(:name => 'schedules')
 
 	#Submit search form
-	results = a.submit(search_form, button)
+	r = a.submit()
 	
 	#Select table elements in the results page, and put the html and inner text into an array
-	td = results.search("//tr//td")
+	assert a.viewing_html()
+	results = BeautifulSoup(r.read())
 	elements = []
-	td.each do |t|
-		if t.attr('class') == "schedulesTD"
-			elements << t
-		end
-	end
-		
-	#Write heaaders to csv file
-	# results_file.write("Depart,Arrive,Transfer,Leaves,Duration,Status\n")
-	
+	print results.find_all('td', attrs={'class' : "schedulesTD"})
+	for tag in results.find_all('td', attrs={'class' : "schedulesTD"}):
+		elements.append(tag.string)
+
 	#Loop to iterate through results and extract and write the inner text elements to the csv file
 	i = 1
 	trains = []
 	train_info = []
-	elements.each do |t|
-		if i <= 1 or i == 4 or i == 8
+	for t in elements:
+		if i<= 1 or i == 4 or i == 8:
 			i = i + 1
-		elsif i < 9
-			text = t.inner_text()
-			train_info << text
+		elif i < 9:
+			train_info.append(t.string)
 			i = i + 1
-		elsif i == 9
-			text = t.inner_text()
-			train_info << text
-			
-			#Finished with train info, so create Train object, add it to result array, and reset train info array
-			begin
-				train = Train.new(train_info[0], Station.new(from_station_id, station_csv_file), train_info[1], Station.new(to_station_id, station_csv_file), Station.new(train_info[2], station_csv_file), train_info[3], train_info[4], train_info[5])
-			rescue StationError => e
-				puts "Station invalid."
-			end
-			trains << train
+		elif i == 9:
+			train_info.append(t.string)
+			try:
+				train = Train(train_info[0], Station(from_station_id, station_csv_file), train_info[1], Station(to_station_id, station_csv_file), Station(train_info[2], station_csv_file), train_info[3], train_info[4], train_info[5])
+			except StationError:
+				print("Station invalid.")
+			trains.append(train)
 			train_info = []
 			i = 1
-		end
-	end
 	
-	#Close csv file
-	# puts "Train times retrieved."
-	
-	#Create and return array of relevant train 
+	#Return array of relevant trains 
 	return trains
-end
+
 
 #Takes a pair of stations and returns the next Train object that makes the specified trip.
 #args = [from_station, to_station, station_csv_file]
-def getNextTrain(*args)
+def getNextTrain(*args):
 	#Set args
-	if !(args[0].is_a? Station) or !(args[1].is_a? Station)
-		abort("Invalid station specifed for getNextTrain.")
-	else
+	if isinstance(args[0], Station) and isinstance(args[1], Station):
 		from_station = args[0]
 		to_station = args[1]
-	end
+	else:
+		print("Invalid station specified for getNextTrain.")
 	
-	if args[2].is_a? String
+	if isinstance(args[2], basestring):
 		station_csv_file = args[2]
-		puts station_csv_file
-	else
+		#puts station_csv_file
+	else:
 		station_csv_file = "stations.csv"
-	end
 	
 	#Get current time, rounded to the next 15 mins for search purposes
-	time = Time.now.ceiling(15*60).strftime("%I:%M")
-	# puts "Seaching for trains at " + time
+	#t = TrainTime(int(round(time.localtime())))
+	#t = t.ceiling(15*60)
+	t = time.strftime("%I:%M", time.localtime())
+	#time = Time.now.ceiling(15*60).strftime("%I:%M")
 	
 	#Run train search to find 5 trains around the current rounded time
-	begin
-		trains = getTrainTimes(from_station, to_station, time, getAMPM(), getTodaysDate(), station_csv_file)
-	rescue StationError => e
-		puts e.message
-		puts e.backtrace
-	end
+	try:
+		trains = getTrainTimes(from_station, to_station, t, getAMPM(), getTodaysDate(), station_csv_file)
+	except StationError:
+		print("Stationerror right after time and search")
 	
 	#Get and return the next train!
-	trains.each do |train|
-		departure_time = Time.parse(train.dep_time)
-		if departure_time > Time.now
-			return train #Returns the first train with departure time after current time
-		end
-	end
+	for train in trains:
+		departure_time = dateutil.parser.parse(train.dep_time)
+		if departure_time > datetime.now():
+			return train
+
+	#trains.each do |train|
+	#	departure_time = Time.parse(train.dep_time)
+	#	if departure_time > Time.now
+	#		return train #Returns the first train with departure time after current time
+	#	end
+	#end
 	
 	return [] #No trains found
 	
-end
 
 #End Methods
 ###
@@ -282,6 +287,15 @@ end
 ###
 #Begin code body
 
+stations_csv_file = "stations.csv"
+
+from_station = Station("Penn Station", stations_csv_file)
+to_station = Station("Deer Park", stations_csv_file)
+train = getNextTrain(from_station, to_station, stations_csv_file)
+if train == []:
+	print("No trains found.")
+else:
+	print(train.to_siri())
 
 #End code body
 ###
