@@ -159,6 +159,16 @@ def getTime():
 	t = time.time()
 	return time.strftime("%I:%M", time.localtime(t))
 
+def getTimeCeiling(sec):
+	t = TrainTime(time.time())
+	t.ceiling(sec)
+	return t.to_time()
+
+def getTimeFloor(sec):
+	t = TrainTime(time.time())
+	t.floor(sec)
+	return t.to_time()
+
 def getAMPM():
 	t = time.time()
 	return time.strftime("%P", time.localtime(t))
@@ -182,7 +192,65 @@ def getTodaysDate():
 	date_string = month_string + "/" + day_string + "/" + str(now.year)
 	return date_string
 
-print getTodaysDate()
+#args: from_station, to_station, request_time, request_am_pm, request_date, stations_csv_file
+def getTrainTimes(**args):
+	#Assign useful names to args
+	try:
+		stations_csv_file = args['stations_csv_file']
+	except KeyError as e:
+		stations_csv_file = "stations.csv"
+
+	try:
+		from_station = args['from_station']
+	except KeyError as e:
+		print "Error: no from_station specified"
+	try:
+		to_station = args['to_station']
+	except KeyError as e:
+		print "Error: no to_station specified"
+	
+	try:
+		request_time = args['request_time']
+	except KeyError as e:
+		request_time = getTimeCeiling(15*60)
+		
+	
+	try:
+		request_am_pm = args['request_am_pm']
+	except KeyError as e:
+		request_am_pm = getAMPM()
+
+	try:
+		request_date = args['request_date']
+	except KeyError as e:
+		request_date = getTodaysDate()
+
+	#Create Mechanize agent
+	br = mechanize.Browser()
+
+	#Get lirr schedule search page
+	br.open("http://lirr42.mta.info")
+
+	#Select search form
+	br.select_form(name="index")
+
+	#Set search form parameters
+	#Need to catch if stations aren't Station objects -- TODO
+	br['FromStation'] = [from_station.id]
+	br['ToStation'] = [to_station.id]
+	br['RequestTime'] = [request_time]
+	br['RequestAMPM'] = [request_am_pm.upper()]	
+	br['RequestDate'] = request_date
+
+	#Submit search form
+	r = br.submit()
+
+	#Select table elements in the results page
+	results = BeautifulSoup(r.read())
+	elements = []
+	print results.find_all('td', attrs={'class' : 'schedulesTD'})
+
+getTrainTimes(to_station = Station(name='Deer Park'), from_station = Station(name='Penn Station'), request_time="04:30")
 	
 
 try:
