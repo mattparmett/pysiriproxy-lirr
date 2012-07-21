@@ -2,6 +2,7 @@ import mechanize
 from bs4 import BeautifulSoup
 import csv
 import time
+import datetime
 import math
 import sys
 
@@ -127,6 +128,62 @@ class Train():
 			return self.dep_time + " - " + self.trans_time + " - " + self.arr_time
 		else:
 			return self.dep_time + " - " + self.arr_time
+
+###End classes
+###Begin methods
+
+def convertStationToID(station_name, stations_csv_file = "stations.csv"):
+	try:	
+		reader = csv.reader(open(stations_csv_file, 'rb'))
+	except IOError as e:
+		raise StationError("File " + stations_csv_file + " not found.")
+	for row in reader:
+		if row[1] == station_name:
+			return row[0]
+	raise StationError("Error: station name \"" + station_name + "\" not found in " + stations_csv_file)
+
+def convertIDToStation(station_id, stations_csv_file = "stations.csv"):
+	try:
+		reader = csv.reader(open(stations_csv_file, 'rb'))
+	except IOError as e:
+		raise StationError("File " + stations_csv_file + " not found.")
+
+	for row in reader:
+		if row[0] == str(station_id):
+			return row[1]
+
+	raise StationError("Error: station id " + str(station_id) + " not found in " + stations_csv_file)
+
+
+def getTime():
+	t = time.time()
+	return time.strftime("%I:%M", time.localtime(t))
+
+def getAMPM():
+	t = time.time()
+	return time.strftime("%P", time.localtime(t))
+
+def getTodaysDate():
+	now = datetime.datetime.now()
+	
+	#Get correctly formatted month string
+	if now.month < 10:
+		month_string = "0" + str(now.month)
+	else:
+		month_string = str(now.month)
+
+	#Get correctly formatted day string
+	if now.day < 10:
+		day_string = "0" + str(now.month)
+	else:
+		day_string = str(now.day)
+
+	#Combine into one super date string
+	date_string = month_string + "/" + day_string + "/" + str(now.year)
+	return date_string
+
+print getTodaysDate()
+	
 
 try:
 	to = Station(name='Deer Park')
