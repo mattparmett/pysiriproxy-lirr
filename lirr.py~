@@ -14,11 +14,11 @@ class TrainTime():
 
 	@classmethod
 	def round(self, seconds = 60):
-		return time(math.round(self.t / seconds) * seconds)
+		return time((self.t / seconds).round * seconds)
   
 	@classmethod
 	def floor(self, seconds = 60):
-		return time(math.floor(self.t / seconds) * seconds)
+		return time((self.t / seconds).floor * seconds)
   
 	@classmethod
 	def ceiling(self, seconds = 60):
