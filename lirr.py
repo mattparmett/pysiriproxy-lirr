@@ -1,3 +1,5 @@
+#Backend lib for gathering LIRR train schedule data
+
 import mechanize
 import html5lib
 from html5lib import treebuilders
@@ -313,10 +315,3 @@ def getNextTrain(from_station, to_station, stations_csv_file = "stations.csv"):
 
 	#Else, return nothing
 	return None
-
-	
-try:
-	train = getNextTrain(Station(name="Deer Park"), Station(name="Montauk"))
-	print train.to_siri()
-except StationError as e:
-	print e.value
