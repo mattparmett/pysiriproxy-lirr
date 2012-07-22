@@ -1,5 +1,6 @@
 import mechanize
-from bs4 import BeautifulSoup
+import html5lib
+from html5lib import treebuilders
 import csv
 import time
 import datetime
@@ -31,8 +32,8 @@ class Station():
 	def __init__(self, **args):
 		#Set up csv parser		
 		try:
-			if isinstance(args['csv_file'], basestring):
-				reader = csv.reader(open(args['csv_file'], 'rb'))
+			if isinstance(args['stations_csv_file'], basestring):
+				reader = csv.reader(open(args['stations_csv_file'], 'rb'))
 			else:
 				reader = csv.reader(open("stations.csv", 'rb'))
 		except KeyError:
@@ -203,11 +204,11 @@ def getTrainTimes(**args):
 	try:
 		from_station = args['from_station']
 	except KeyError as e:
-		print "Error: no from_station specified"
+		raise StationError("Error: no from_station specified")
 	try:
 		to_station = args['to_station']
 	except KeyError as e:
-		print "Error: no to_station specified"
+		raise StationError("Error: no to_station specified")
 	
 	try:
 		request_time = args['request_time']
@@ -246,25 +247,76 @@ def getTrainTimes(**args):
 	r = br.submit()
 
 	#Select table elements in the results page
-	results = BeautifulSoup(r.read())
+	html = r.read()	
+	parser = html5lib.HTMLParser(tree = treebuilders.getTreeBuilder("beautifulsoup"))
+	tree = parser.parse(html)
+	results = tree.findAll('td', {'class': 'schedulesTD'})
+
+	#Add all relevant elements to master list
 	elements = []
-	print results.find_all('td', attrs={'class' : 'schedulesTD'})
+	for t in results:
+		elements.append(t)
 
-getTrainTimes(to_station = Station(name='Deer Park'), from_station = Station(name='Penn Station'), request_time="04:30")
+	#Sort master list into Trains
+	i = 1
+	trains = []
+	train_info = []
+	for e in elements:
+		if i <= 1 or i == 4 or i == 8:
+			i = i + 1
+		elif i < 9:
+			train_info.append(e)
+			i = i + 1
+		elif i == 9:
+			train_info.append(e)
+			#Finished with info for this Train, so add it to result array & reset train info array
+			dep_time = str(train_info[0].string)
+			arr_time = str(train_info[1].string)
+			from_station = Station(id = from_station.id, stations_csv_file = stations_csv_file)
+			to_station = Station(id = to_station.id, stations_csv_file = stations_csv_file)
+			duration = str(train_info[4].string)
+			peak = str(train_info[5].string)
+
+			try: #Check if there is a transfer station
+				#Remove asterisk from station name
+				name = str(train_info[2].string).replace("*","")
+				trans_station = Station(name = name, stations_csv_file = stations_csv_file)
+			except StationError as e: #No transfer, so create Train accordingly
+				train = Train(dep_time = dep_time, from_station = from_station, arr_time = arr_time, to_station = to_station, duration = duration, peak = peak)
+			
+			else: #There is a transfer
+				trans_time = str(train_info[3].string)
+				train = Train(dep_time = dep_time, from_station = from_station, arr_time = arr_time, to_station = to_station, trans_station = trans_station, trans_time = trans_time, duration = duration, peak = peak)
+
+			
+			trains.append(train)
+			train_info = []
+			i = 1
+	return trains
+
+def getNextTrain(from_station, to_station, stations_csv_file = "stations.csv"):
+	#Get current time, rounded to the next 15 min for search purposes
+	t = getTimeCeiling(15*60)
+
+	#Run train search to find 5 trains around the current rounded time
+	try:
+		trains = getTrainTimes(to_station = to_station, from_station = from_station)
+	except StationError as e:
+		print e.value
 	
+	#Get and return next train
+	for train in trains:
+		train_time = time.strptime(train.dep_time + " " + str(datetime.datetime.now().month) + " " + str(datetime.datetime.now().day) + " " + str(datetime.datetime.now().year), "%I:%M %p %m %d %Y")
 
+		if train_time > time.localtime():
+			return train
+
+	#Else, return nothing
+	return None
+
+	
 try:
-	to = Station(name='Deer Park')
-	frm = Station(name='Penn Station')
-	train = Train(dep_time='12:45', from_station=frm, arr_time='1:45', to_station=to, trans_station=to, trans_time='1:15', duration='60 min', peak=True)
+	train = getNextTrain(Station(name="Deer Park"), Station(name="Montauk"))
+	print train.to_siri()
 except StationError as e:
 	print e.value
-except KeyError as e:
-	print str(e)
-except AttributeError as e:
-	print e.value
-else:
-	try:
-		print train.to_timetable()
-	except AttributeError as e:
-		print "Error: " + str(e)
