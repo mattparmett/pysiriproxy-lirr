@@ -110,8 +110,6 @@ class Train():
 		else:
 			self.has_transfer = True
 
-	def transfer(self):
-		return self.has_transfer
 
 	def peak(self):
 		if self.peak == "Peak":
@@ -120,14 +118,14 @@ class Train():
 			return False
 
 	def to_siri(self):
-		if self.transfer() == True:
+		if self.has_transfer == True:
 			return "The next train from " + self.from_station.name + " to " + self.to_station.name + " leaves at " + self.dep_time + " and arrives at " + self.arr_time + ", with a transfer at " + self.trans_station.name + " at " + self.trans_time + "."
 
 		else:
 			return "The next train from " + self.from_station.name + " to " + self.to_station.name + " leaves at " + self.dep_time + " and arrives at " + self.arr_time + "."
 
 	def to_timetable(self):
-		if self.transfer() == True:
+		if self.has_transfer == True:
 			return self.dep_time + " - " + self.trans_time + " - " + self.arr_time
 		else:
 			return self.dep_time + " - " + self.arr_time
@@ -162,8 +160,8 @@ def getTime():
 	t = time.time()
 	return time.strftime("%I:%M", time.localtime(t))
 
-def getTimeCeiling(sec):
-	t = TrainTime(time.time())
+def getTimeCeiling(sec, s = time.time()):
+	t = TrainTime(s)
 	t.ceiling(sec)
 	return t.to_time()
 
