@@ -15,8 +15,8 @@ class Plugin(BasePlugin):
 	stations_csv_file = "/home/matt/.pysiriproxy/plugins/stations.csv" #Edit to make user-configurable
 	
 
-	@regex("when is the next train from ([a-z ]*) to ([a-z ]*) ")
-	def testRegex(self, text):
+	@regex("(when is|when's) the next train from ([a-z ]*) to ([a-z ]*) ")
+	def nextTrainRegex(self, text):
 		text = text.replace("When is the next train from ","")
 		text = text.replace(" to ",",")
 		stations = text.split(",")
@@ -37,8 +37,8 @@ class Plugin(BasePlugin):
 		self.say(train.to_siri())
 		self.completeRequest()
 
-	@regex("when is the next train from ([a-z ]*) to ([a-z]*)")
-	def testRegex2(self, text):
+	@regex("(when is|when's) the next train from ([a-z ]*) to ([a-z]*)")
+	def nextTrainRegex2(self, text):
 		text = text.replace("When is the next train from ","")
 		text = text.replace(" to ",",")
 		stations = text.split(",")
@@ -49,14 +49,59 @@ class Plugin(BasePlugin):
 				from_station_name = a + " " + from_station_name
 			if a == "from":
 				break
-		to_station_name = stations[1]
-		print from_station_name[0:-1].title() + "."
-		print to_station_name.title() + "."
+		from_station_name = from_station_name[0:-1].title()
+		to_station_name = stations[1].title()
 		try:	
-			train = nextTrain(from_station_name[0:-1].title(), to_station_name.title(), self.stations_csv_file)
+			train = nextTrain(from_station_name, to_station_name, self.stations_csv_file)
 		except StationError as e:
 			raise StationError(e.value)
 		self.say(train.to_siri())
+		self.completeRequest()
+
+	@regex("get the train times for ([a-z ]*) to ([a-z ]*) ")
+	def timetableRegex(self, text):
+		text = text.replace("get the train times for ","")
+		text = text.replace(" to ",",")
+		stations = text.split(",")
+		stations[0] = stations[0].split(" ")
+		from_station_name = ""
+		for a in reversed(stations[0]):
+			if a != "for":
+				from_station_name = a + " " + from_station_name
+			if a == "for":
+				break
+		from_station_name = from_station_name[0:-1].title()
+		to_station_name = stations[1].title()
+		print from_station_name
+		print to_station_name
+		trains = trainSchedule(from_station_name, to_station_name)
+		timetable = ""
+		for train in reversed(trains):
+			timetable = train.to_timetable() + "\n" + timetable
+		self.say("Here are the train times for " + from_station_name + " to " + to_station_name + ":\n\n" + timetable, spoken="Here are the train times for " + from_station_name + " to " + to_station_name + ".")
+		self.completeRequest()
+
+	@regex("get the train times for ([a-z ]*) to ([a-z]*)")
+	def timetableRegex2(self, text):
+		text = text.replace("get the train times for ","")
+		text = text.replace(" to ",",")
+		stations = text.split(",")
+		stations[0] = stations[0].split(" ")
+		from_station_name = ""
+		for a in reversed(stations[0]):
+			if a != "for":
+				from_station_name = a + " " + from_station_name
+			if a == "for":
+				break
+		from_station_name = from_station_name[0:-1].title()
+		to_station_name = stations[1].title()
+		print from_station_name
+		print to_station_name
+		trains = trainSchedule(from_station_name, to_station_name)
+		timetable = ""
+		for train in reversed(trains):
+			timetable = train.to_timetable() + "\n" + timetable
+		self.say("Here are the train times for " + from_station_name + " to " + to_station_name + ":\n\n" + timetable, spoken="Here are the train times for " + from_station_name + " to " + to_station_name + ".")
 		self.completeRequest()
 
 ###Other classes
